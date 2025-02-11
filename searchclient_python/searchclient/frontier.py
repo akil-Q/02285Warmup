@@ -85,22 +85,27 @@ class FrontierBestFirst(Frontier):
     def __init__(self, heuristic: Heuristic) -> None:
         super().__init__()
         self.heuristic = heuristic
-        raise NotImplementedError
+        self.queue: deque[State] = deque()
+        self.set: set[State] = set()
 
     def add(self, state: State) -> None:
-        raise NotImplementedError
+        self.queue.append(state)
+        self.set.add(state)
 
     def pop(self) -> State:
-        raise NotImplementedError
+        state = min(self.queue, key=lambda s: self.heuristic.f(s))
+        self.queue.remove(state)
+        self.set.remove(state)
+        return state
 
     def is_empty(self) -> bool:
-        raise NotImplementedError
+        return len(self.queue) == 0
 
     def size(self) -> int:
-        raise NotImplementedError
+        return len(self.queue)
 
     def contains(self, state: State) -> bool:
-        raise NotImplementedError
-
+        return state in self.set
+    
     def get_name(self) -> str:
         return f"best-first search using {self.heuristic}"

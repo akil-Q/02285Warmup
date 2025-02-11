@@ -9,7 +9,18 @@ class Heuristic(ABC):
         pass
 
     def h(self, state: State) -> int:
-        raise NotImplementedError
+        # h(n)should simply count how many agents or boxes are not at their destination.
+        Not_at_goal = 0
+        for row in range(len(state.goals)):
+            for col in range(len(state.goals[row])):
+                goal = state.goals[row][col]
+
+                if "A" <= goal <= "Z" and state.boxes[row][col] != goal:
+                    Not_at_goal += 1
+                if "0" <= goal <= "9" and not (
+                    state.agent_rows[ord(goal) - ord("0")] == row and state.agent_cols[ord(goal) - ord("0")] == col
+                ):
+                    Not_at_goal += 1
 
     @abstractmethod
     def f(self, state: State) -> int: ...
