@@ -61,6 +61,22 @@ class State:
                 copy_agent_rows[agent] += action.agent_row_delta
                 copy_agent_cols[agent] += action.agent_col_delta
 
+            elif action.type is ActionType.Push:
+                copy_agent_rows[agent] += action.agent_row_delta
+                copy_agent_cols[agent] += action.agent_col_delta 
+
+                box = copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] 
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = ""
+                copy_boxes[copy_agent_rows[agent] + action.box_row_delta][copy_agent_cols[agent] + action.box_col_delta] = box
+
+            elif action.type is ActionType.Pull:
+                box = copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_rows[agent] - action.box_col_delta]
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = box
+                copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_rows[agent] - action.box_col_delta] = ""
+
+                copy_agent_rows[agent] += action.agent_row_delta
+                copy_agent_cols += action.agent_col_delta
+
         copy_state = State(copy_agent_rows, copy_agent_cols, copy_boxes)
 
         copy_state.parent = self
@@ -123,14 +139,29 @@ class State:
         agent_row = self.agent_rows[agent]
         agent_col = self.agent_cols[agent]
         _agent_color = State.agent_colors[agent]
+        destination_row = agent_row + action.agent_row_delta
+        destination_col = agent_col + action.agent_col_delta
 
         if action.type is ActionType.NoOp:
             return True
 
         if action.type is ActionType.Move:
-            destination_row = agent_row + action.agent_row_delta
-            destination_col = agent_col + action.agent_col_delta
             return self.is_free(destination_row, destination_col)
+
+        if action.type is ActionType.Push:
+            # if agent direction does not contain box of same color then return false
+            # return is free of moving box in box direction
+            if not self.boxes[destination_row][destination_col]: # assumes single agent system
+                return False
+            return self.is_free(destination_row + action.box_row_delta, destination_col + action.box_col_delta )
+
+        if action.type is ActionType.Pull:
+            # if opposing box direction does not contain agent of same color then return false
+            # return is free of moving agent in agent direction
+            if not self.boxes[destination_row - action.box_row_delta][destination_col - action.box_col_delta]: # assume single agent system
+                return False
+            return self.is_free(destination_row + action.agent_row_delta, destination_col + action.agent_col_delta)
+
 
         assert False, f"Not implemented for action type {action.type}."
 
