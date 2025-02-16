@@ -82,44 +82,19 @@ class State:
         return copy_state
 
     def is_goal_state(self) -> bool:
-        # Check box and agent goals as defined in the goal grid.
+    # Iterate over every cell in the goal grid.
         for row in range(len(State.goals)):
             for col in range(len(State.goals[row])):
                 goal = State.goals[row][col]
-                if "A" <= goal <= "Z" and self.boxes[row][col] != goal:
-                    return False
-                if "0" <= goal <= "9" and not (
-                    self.agent_rows[ord(goal) - ord("0")] == row and self.agent_cols[ord(goal) - ord("0")] == col
-                ):
-                    return False
-        
-        # Additional check: ensure each agent is within one cell of its corresponding box.
-        for agent in range(len(self.agent_rows)):
-            # Identify the box that belongs to this agent by color or convention.
-            # For example, assume agent i's box is the one that has the letter corresponding to i in some mapping.
-            # Here we assume a mapping: 0->'A', 1->'B', etc.
-            box_goal = chr(ord('A') + agent)
-            # Find the box's location.
-            found = False
-            for r in range(len(self.boxes)):
-                for c in range(len(self.boxes[r])):
-                    if self.boxes[r][c] == box_goal:
-                        found = True
-                        # Check if the agent is adjacent (or in any required relation) to the box.
-                        # if abs(self.agent_rows[agent] - r) > 1 or abs(self.agent_cols[agent] - c) > 1:
-                        #     return False
-                        # Ensure all boxes are in their goal positions
-                        for row in range(len(State.goals)):
-                            for col in range(len(State.goals[row])):
-                                goal = State.goals[row][col]
-                                if "A" <= goal <= "Z" and self.boxes[row][col] != goal:
-                                    return False
-                                if "0" <= goal <= "9" and not (
-                                    self.agent_rows[ord(goal) - ord("0")] == row and self.agent_cols[ord(goal) - ord("0")] == col
-                                ):
-                                    return False
-            if not found:
-                return False
+                # If there's a box goal (A-Z), then the box must be here.
+                if "A" <= goal <= "Z":
+                    if self.boxes[row][col] != goal:
+                        return False
+                # If there's an agent goal (0-9), then the corresponding agent must be here.
+                elif "0" <= goal <= "9":
+                    agent_index = ord(goal) - ord("0")
+                    if self.agent_rows[agent_index] != row or self.agent_cols[agent_index] != col:
+                        return False
         return True
 
 
