@@ -19,8 +19,18 @@ def search(initial_state: State, frontier: Frontier) -> list[list[Action]] | Non
 
         return [
             [Action.MoveS],
+            [Action.MoveS],
             [Action.MoveE],
             [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveE],
+            [Action.MoveS],
             [Action.MoveS],
         ]
 
@@ -58,15 +68,17 @@ def search(initial_state: State, frontier: Frontier) -> list[list[Action]] | Non
             return None
         
         state = frontier.pop()
-        explored.add(state)
-
+        
         if state.is_goal_state():
             print_search_status(explored, frontier)
             return state.extract_plan()
         
+        explored.add(state)
+        
         for child in state.get_expanded_states():
             if child not in explored and not frontier.contains(child):
                 frontier.add(child)
+       
 
 
 def print_search_status(explored: set[State], frontier: Frontier) -> None:
