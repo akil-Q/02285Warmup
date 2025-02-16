@@ -41,62 +41,88 @@ class State:
         self.g = 0
         self._hash: int | None = None
 
-    def result(self, joint_action: list[Action]) -> "State":
-        """
+    def result(self, joint_action: list[Action]) -> 'State':
+        '''
         Returns the state resulting from applying joint_action in this state.
         Precondition: Joint action must be applicable and non-conflicting in this state.
-        """
-
+        '''
+        
         # Copy this state.
         copy_agent_rows = self.agent_rows[:]
         copy_agent_cols = self.agent_cols[:]
         copy_boxes = [row[:] for row in self.boxes]
-
+        
         # Apply each action.
         for agent, action in enumerate(joint_action):
             if action.type is ActionType.NoOp:
                 pass
-
+            
             elif action.type is ActionType.Move:
                 copy_agent_rows[agent] += action.agent_row_delta
                 copy_agent_cols[agent] += action.agent_col_delta
-
+            #add pushing and pulling
             elif action.type is ActionType.Push:
                 copy_agent_rows[agent] += action.agent_row_delta
-                copy_agent_cols[agent] += action.agent_col_delta 
-
-                box = copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] 
-                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = ""
-                copy_boxes[copy_agent_rows[agent] + action.box_row_delta][copy_agent_cols[agent] + action.box_col_delta] = box
+                copy_agent_cols[agent] += action.agent_col_delta
+                copy_boxes[copy_agent_rows[agent] + action.box_row_delta][copy_agent_cols[agent] + action.box_col_delta] = copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]]
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = ''
 
             elif action.type is ActionType.Pull:
-                box = copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_rows[agent] - action.box_col_delta]
-                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = box
-                copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_rows[agent] - action.box_col_delta] = ""
-
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_cols[agent] - action.box_col_delta]
+                copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_cols[agent] - action.box_col_delta] = ''
                 copy_agent_rows[agent] += action.agent_row_delta
-                copy_agent_cols += action.agent_col_delta
+                copy_agent_cols[agent] += action.agent_col_delta
 
         copy_state = State(copy_agent_rows, copy_agent_cols, copy_boxes)
-
+        
         copy_state.parent = self
-        copy_state.joint_action = joint_action.copy()
+        copy_state.joint_action = joint_action[:]
         copy_state.g = self.g + 1
-
+        
         return copy_state
 
     def is_goal_state(self) -> bool:
+        # Check box and agent goals as defined in the goal grid.
         for row in range(len(State.goals)):
             for col in range(len(State.goals[row])):
                 goal = State.goals[row][col]
-
                 if "A" <= goal <= "Z" and self.boxes[row][col] != goal:
                     return False
                 if "0" <= goal <= "9" and not (
                     self.agent_rows[ord(goal) - ord("0")] == row and self.agent_cols[ord(goal) - ord("0")] == col
                 ):
                     return False
+        
+        # Additional check: ensure each agent is within one cell of its corresponding box.
+        for agent in range(len(self.agent_rows)):
+            # Identify the box that belongs to this agent by color or convention.
+            # For example, assume agent i's box is the one that has the letter corresponding to i in some mapping.
+            # Here we assume a mapping: 0->'A', 1->'B', etc.
+            box_goal = chr(ord('A') + agent)
+            # Find the box's location.
+            found = False
+            for r in range(len(self.boxes)):
+                for c in range(len(self.boxes[r])):
+                    if self.boxes[r][c] == box_goal:
+                        found = True
+                        # Check if the agent is adjacent (or in any required relation) to the box.
+                        # if abs(self.agent_rows[agent] - r) > 1 or abs(self.agent_cols[agent] - c) > 1:
+                        #     return False
+                        # Ensure all boxes are in their goal positions
+                        for row in range(len(State.goals)):
+                            for col in range(len(State.goals[row])):
+                                goal = State.goals[row][col]
+                                if "A" <= goal <= "Z" and self.boxes[row][col] != goal:
+                                    return False
+                                if "0" <= goal <= "9" and not (
+                                    self.agent_rows[ord(goal) - ord("0")] == row and self.agent_cols[ord(goal) - ord("0")] == col
+                                ):
+                                    return False
+            if not found:
+                return False
         return True
+
+
 
     def get_expanded_states(self) -> list["State"]:
         num_agents = len(self.agent_rows)
@@ -138,32 +164,57 @@ class State:
     def is_applicable(self, agent: int, action: Action) -> bool:
         agent_row = self.agent_rows[agent]
         agent_col = self.agent_cols[agent]
-        _agent_color = State.agent_colors[agent]
-        destination_row = agent_row + action.agent_row_delta
-        destination_col = agent_col + action.agent_col_delta
-
+        agent_color = State.agent_colors[agent]
+        
         if action.type is ActionType.NoOp:
             return True
-
-        if action.type is ActionType.Move:
+            
+        elif action.type is ActionType.Move:
+            destination_row = agent_row + action.agent_row_delta
+            destination_col = agent_col + action.agent_col_delta
             return self.is_free(destination_row, destination_col)
 
-        if action.type is ActionType.Push:
-            # if agent direction does not contain box of same color then return false
-            # return is free of moving box in box direction
-            if not self.boxes[destination_row][destination_col]: # assumes single agent system
+        elif action.type is ActionType.Push:
+            destination_row = agent_row + action.agent_row_delta
+            destination_col = agent_col + action.agent_col_delta
+            box_destination_row = destination_row + action.box_row_delta
+            box_destination_col = destination_col + action.box_col_delta
+
+            # First, there must be a box in the direction of the push.
+            box_letter = self.boxes[destination_row][destination_col]
+            if box_letter == '':
                 return False
-            return self.is_free(destination_row + action.box_row_delta, destination_col + action.box_col_delta )
 
-        if action.type is ActionType.Pull:
-            # if opposing box direction does not contain agent of same color then return false
-            # return is free of moving agent in agent direction
-            if not self.boxes[destination_row - action.box_row_delta][destination_col - action.box_col_delta]: # assume single agent system
+            # Check that the box color matches the agent's color.
+            box_color = State.box_colors[ord(box_letter) - ord("A")]
+            if agent_color != box_color:
                 return False
-            return self.is_free(destination_row + action.agent_row_delta, destination_col + action.agent_col_delta)
 
+            # And the cell where the box is pushed to must be free.
+            return self.is_free(box_destination_row, box_destination_col)
+        
+        elif action.type is ActionType.Pull:
+            destination_row = agent_row + action.agent_row_delta
+            destination_col = agent_col + action.agent_col_delta
+            box_row = agent_row - action.box_row_delta
+            box_col = agent_col - action.box_col_delta
 
-        assert False, f"Not implemented for action type {action.type}."
+            # There must be a box at the pull location.
+            box_letter = self.boxes[box_row][box_col]
+            if box_letter == '':
+                return False
+
+            # Check that the box color matches the agent's color.
+            box_color = State.box_colors[ord(box_letter) - ord("A")]
+            if agent_color != box_color:
+                return False
+
+            # And the destination cell for the agent must be free.
+            return self.is_free(destination_row, destination_col)
+        
+        # If the action type is not recognized, return False.
+        return False
+
 
     def is_conflicting(self, joint_action: list[Action]) -> bool:
         num_agents = len(self.agent_rows)
@@ -203,6 +254,8 @@ class State:
         return False
 
     def is_free(self, row: int, col: int) -> bool:
+        if row < 0 or row >= len(State.walls) or col < 0 or col >= len(State.walls[0]):
+            return False
         return not State.walls[row][col] and not self.boxes[row][col] and self.agent_at(row, col) is None
 
     def agent_at(self, row: int, col: int) -> str | None:
