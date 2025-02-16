@@ -8,17 +8,17 @@ class Heuristic(ABC):
         # Here's a chance to pre-process the static parts of the level.
         pass
 
-    def h(self, state: State) -> int:
-        not_at_goal = 0
-        for row in range(len(state.goals)):
-            for col in range(len(state.goals[row])):
-                goal = state.goals[row][col]
+    # def h(self, state: State) -> int:
+    #     not_at_goal = 0
+    #     for row in range(len(state.goals)):
+    #         for col in range(len(state.goals[row])):
+    #             goal = state.goals[row][col]
 
-                if "A" <= goal <= "Z" and state.boxes[row][col] != goal:
-                    not_at_goal += 1
-                if "0" <= goal <= "9" and not state.agent_at(row, col) == goal:
-                    not_at_goal += 1
-        return not_at_goal
+    #             if "A" <= goal <= "Z" and state.boxes[row][col] != goal:
+    #                 not_at_goal += 1
+    #             if "0" <= goal <= "9" and not state.agent_at(row, col) == goal:
+    #                 not_at_goal += 1
+    #     return not_at_goal
     
     # Making my own improved heuristic function, uncomment to use, and commet out the above h function
     # def h(self, state: State) -> int:
@@ -46,6 +46,42 @@ class Heuristic(ABC):
 
     #     return total_distance
 
+    def h(self, state: State) -> int:
+        total_distance = 0
+
+        # Track available boxes for each letter
+        box_positions = {}
+        for row in range(len(state.boxes)):
+            for col in range(len(state.boxes[row])):
+                box = state.boxes[row][col]
+                if "A" <= box <= "Z":
+                    if box not in box_positions:
+                        box_positions[box] = []
+                    box_positions[box].append((row, col))  # Store positions of each box
+
+        # Compute Manhattan distance for boxes to their goal positions
+        for row in range(len(state.goals)):
+            for col in range(len(state.goals[row])):
+                goal = state.goals[row][col]
+
+                # If the goal is for a box (A-Z)
+                if "A" <= goal <= "Z":
+                    if goal in box_positions and box_positions[goal]:
+                        # Find the closest available box
+                        closest_box_idx = min(
+                            range(len(box_positions[goal])),
+                            key=lambda i: abs(box_positions[goal][i][0] - row) + abs(box_positions[goal][i][1] - col)
+                        )
+                        closest_box = box_positions[goal].pop(closest_box_idx)  # Remove assigned box
+                        total_distance += abs(closest_box[0] - row) + abs(closest_box[1] - col)
+
+                # If the goal is for an agent (0-9)
+                elif "0" <= goal <= "9":
+                    agent_id = ord(goal) - ord("0")  # Convert agent char to index
+                    agent_row, agent_col = state.agent_rows[agent_id], state.agent_cols[agent_id]
+                    total_distance += abs(agent_row - row) + abs(agent_col - col)
+
+        return total_distance
 
 
     @abstractmethod
