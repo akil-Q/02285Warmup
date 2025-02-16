@@ -3,6 +3,8 @@ from collections import deque
 
 from searchclient.heuristic import Heuristic
 from searchclient.state import State
+from itertools import count
+import heapq
 
 
 class Frontier(ABC):
@@ -56,7 +58,7 @@ class FrontierBFS(Frontier):
 class FrontierDFS(Frontier):
     def __init__(self) -> None:
         super().__init__()
-        self.stack: deque[State] = deque()
+        self.stack: list[State] = []
         self.set: set[State] = set()
 
     def add(self, state: State) -> None:
@@ -85,18 +87,29 @@ class FrontierBestFirst(Frontier):
     def __init__(self, heuristic: Heuristic) -> None:
         super().__init__()
         self.heuristic = heuristic
-        self.queue: deque[State] = deque()
-        self.set: set[State] = set()
+        self.queue = []
+        self.set = set()
+        self.entry_finder = {}
+        self.counter = count()
+
 
     def add(self, state: State) -> None:
-        self.queue.append(state)
+        if state in self.set:
+            return
+        f_value = self.heuristic.f(state)
+        entry = (f_value, next(self.counter), state)
+        heapq.heappush(self.queue, entry)
         self.set.add(state)
+        self.entry_finder[state] = entry
 
     def pop(self) -> State:
-        state = min(self.queue, key=lambda s: self.heuristic.f(s))
-        self.queue.remove(state)
-        self.set.remove(state)
-        return state
+        while self.queue:
+            _, _, state = heapq.heappop(self.queue)
+            if state in self.set:
+                self.set.remove(state)
+                #self.set.remove(state)
+                return state
+        raise KeyError('pop from an empty priority queue')
 
     def is_empty(self) -> bool:
         return len(self.queue) == 0
@@ -106,6 +119,6 @@ class FrontierBestFirst(Frontier):
 
     def contains(self, state: State) -> bool:
         return state in self.set
-    
+
     def get_name(self) -> str:
         return f"best-first search using {self.heuristic}"
