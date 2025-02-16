@@ -62,26 +62,16 @@ class State:
                 copy_agent_cols[agent] += action.agent_col_delta
 
             elif action.type is ActionType.Push:
-                box_row = copy_agent_rows[agent] + action.agent_row_delta
-                box_col = copy_agent_cols[agent] + action.agent_col_delta
-                new_box_row = box_row + action.box_row_delta
-                new_box_col = box_col + action.box_col_delta
-
-                copy_agent_rows[agent] = box_row
-                copy_agent_cols[agent] = box_col
-                copy_boxes[new_box_row][new_box_col] = copy_boxes[box_row][box_col]
-                copy_boxes[box_row][box_col] = None
+                copy_agent_rows[agent] += action.agent_row_delta
+                copy_agent_cols[agent] += action.agent_col_delta
+                copy_boxes[copy_agent_rows[agent] + action.box_row_delta][copy_agent_cols[agent] + action.box_col_delta] = copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]]
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = ''
 
             elif action.type is ActionType.Pull:
-                box_row = copy_agent_rows[agent] - action.box_row_delta
-                box_col = copy_agent_cols[agent] - action.box_col_delta
-                new_agent_row = copy_agent_rows[agent] + action.agent_row_delta
-                new_agent_col = copy_agent_cols[agent] + action.agent_col_delta
-
-                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = copy_boxes[box_row][box_col]
-                copy_boxes[box_row][box_col] = None
-                copy_agent_rows[agent] = new_agent_row
-                copy_agent_cols[agent] = new_agent_col
+                copy_boxes[copy_agent_rows[agent]][copy_agent_cols[agent]] = copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_cols[agent] - action.box_col_delta]
+                copy_boxes[copy_agent_rows[agent] - action.box_row_delta][copy_agent_cols[agent] - action.box_col_delta] = ''
+                copy_agent_rows[agent] += action.agent_row_delta
+                copy_agent_cols[agent] += action.agent_col_delta
 
         copy_state = State(copy_agent_rows, copy_agent_cols, copy_boxes)
 
@@ -154,29 +144,20 @@ class State:
             destination_col = agent_col + action.agent_col_delta
             return self.is_free(destination_row, destination_col)
 
-        if action.type is ActionType.Push:
-            box_row = agent_row + action.agent_row_delta
-            box_col = agent_col + action.agent_col_delta
-            new_box_row = box_row + action.box_row_delta
-            new_box_col = box_col + action.box_col_delta
-            return (
-                self.boxes[box_row][box_col] is not None
-                and self.is_free(new_box_row, new_box_col)
-                and self.boxes[box_row][box_col] != ""
-                and State.box_colors[ord(self.boxes[box_row][box_col]) - ord("A")] == _agent_color
-            )
-
-        if action.type is ActionType.Pull:
-            box_row = agent_row - action.box_row_delta
-            box_col = agent_col - action.box_col_delta
-            new_agent_row = agent_row + action.agent_row_delta
-            new_agent_col = agent_col + action.agent_col_delta
-            return (
-                self.is_free(new_agent_row, new_agent_col)
-                and self.boxes[box_row][box_col] is not None
-                and self.boxes[box_row][box_col] != ""
-                and State.box_colors[ord(self.boxes[box_row][box_col]) - ord("A")] == _agent_color
-            )
+        elif action.type is ActionType.Push:
+            destination_row = agent_row + action.agent_row_delta
+            destination_col = agent_col + action.agent_col_delta
+            box_destination_row =  destination_row + action.box_row_delta
+            box_destination_col =  destination_col + action.box_col_delta
+            return self.boxes[destination_row][destination_col] != '' and self.is_free(box_destination_row, box_destination_col)
+        
+        elif action.type is ActionType.Pull:
+            destination_row = agent_row + action.agent_row_delta
+            destination_col = agent_col + action.agent_col_delta
+            box_row =  agent_row  - action.box_row_delta
+            box_col =  agent_col - action.box_col_delta
+            return self.boxes[box_row][box_col] != '' and self.is_free(destination_row, destination_col)
+        
 
         assert False, f"Not implemented for action type {action.type}."
 
